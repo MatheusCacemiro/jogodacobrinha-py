@@ -18,7 +18,7 @@ vermelho = (255, 0, 0)
 verde = (0, 255, 0)
 
 # parâmetro cobra
-tamanho_quadrado = 10
+tamanho_quadrado = 8
 velocidade_cobra = 30
 
 # pontuacao
