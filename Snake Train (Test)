@@ -1,0 +1,193 @@
+# -*- coding: utf-8 -*-
+
+# configurações iniciais
+import pygame
+import random
+from time import sleep
+import os
+import cv2
+import mediapipe as mp
+from cvzone.HandTrackingModule import HandDetector
+from pynput.keyboard import Key, Controller
+
+pygame.init()
+pygame.display.set_caption('Snake')
+largura, altura = 1600, 800
+tela = pygame.display.set_mode((largura, altura))
+relogio = pygame.time.Clock()
+
+#Definições CAM
+video = cv2.VideoCapture(0)
+
+video.set(3, 1280)
+video.set(4, 720)
+
+kb = Controller()
+
+detector = HandDetector(detectionCon=0.8)
+estadoAtual = [0, 0, 0, 0, 0]
+# setDir = cv2.imread('seta dir.PNG')
+# setEsq = cv2.imread('seta esq.PNG')
+
+# cores RGB
+preto = (0, 0, 0)
+branco = (255, 255, 255)
+vermelho = (255, 0, 0)
+verde = (0, 255, 0)
+
+# parâmetro cobra
+tamanho_quadrado = 20
+valocidade_cobra = 15
+
+# pontuacao
+pontuacao = 0
+
+
+# gerar_comida
+def gerar_comida():
+    comida_x = round(random.randrange(
+        0, largura - tamanho_quadrado) / 20.0) * 20.0
+    comida_y = round(random.randrange(
+        0, altura - tamanho_quadrado) / 20.0) * 20.0
+    return comida_x, comida_y
+
+
+def desenhar_comida(tamanho, comida_x, comida_y):
+    pygame.draw.rect(tela, vermelho, [comida_x, comida_y, tamanho, tamanho])
+
+
+def desenhar_cobra(tamanho, pixels):
+    for pixel in pixels:
+        pygame.draw.rect(tela, branco, [pixel[0], pixel[1], tamanho, tamanho])
+
+        
+# Loop infinito
+def jogo():
+    fim_jogo = False
+
+    # configurações iniciai cobra
+    x = largura / 2
+    y = altura / 2
+
+    velocidade_x = 0
+    velocidade_y = 0
+
+    tamanho_cobra = 1
+    pixels = []
+
+    comida_x, comida_y = gerar_comida()
+
+    # start do timer
+    start_ticks = pygame.time.get_ticks()
+
+    while not fim_jogo:
+        tela.fill(preto)
+
+        # Calcula o tempo decorrido
+        seconds = (pygame.time.get_ticks() - start_ticks) / 1000 # divide por 1000 para converter milissegundos em segundos
+
+        min, sec = divmod(seconds, 60) # Obtém minutos e segundos
+        hour, min = divmod(min, 60) # Obtém horas e minutos
+
+        # Renderiza o tempo na tela
+        fonte = pygame.font.SysFont('Prosa', 25)
+        texto = fonte.render(f"{int(hour)}:{int(min)}:{int(sec)}",  True, verde)
+        tela.blit(texto, [10, 35])
+
+        formatted_time = f"{int(hour)}:{int(min)}:{int(sec)}"
+
+        #Roda cam
+        _,img = video.read()
+        hands, img = detector.findHands(img)
+
+             
+        # Para cada evento dentro da função (pygame.event.get()) se o botão clicado pelo usuário foi = QUIT(sair) então fim_jogo é verdadeiro
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                fim_jogo = True
+
+            elif hands:   
+
+                velocidade_x = 0
+                velocidade_y = 0
+                estado = detector.fingersUp(hands[0])
+
+                if estado != estadoAtual and estado == [0, 0, 0, 0, 1]:
+                    kb.press(Key.right)
+                    kb.release(Key.right)
+                    velocidade_x = tamanho_quadrado
+                    velocidade_y = 0
+
+                    
+                elif estado != estadoAtual and estado == [1, 0, 0, 0, 0]:
+                    kb.press(Key.left)
+                    kb.release(Key.left)
+                    velocidade_x = -tamanho_quadrado
+                    velocidade_y = 0
+                    
+
+                elif estado != estadoAtual and estado == [0, 1, 0, 0, 0]:
+                    kb.press(Key.up)
+                    kb.release(Key.up)
+                    velocidade_x = 0
+                    velocidade_y = -tamanho_quadrado
+                    
+
+                elif estado != estadoAtual and estado == [0, 0, 1, 0, 0]:
+                    kb.press(Key.down)
+                    kb.release(Key.down)
+                    velocidade_x = 0
+                    velocidade_y = tamanho_quadrado
+
+                estadoAtual = estado
+                cv2.imshow('img', cv2.resize(img,(1280, 720)))
+                cv2.waitKey(1)
+            
+
+        # Comida
+        desenhar_comida(tamanho_quadrado, comida_x, comida_y)
+
+        # atualizar posicao da cobra
+        x += velocidade_x
+        y += velocidade_y
+
+        # Cobra
+        pixels.append([x, y])
+        if len(pixels) > tamanho_cobra:
+            del pixels[0]
+
+        # Caso a cobra bata nela mesma
+        for pixel in pixels[:-1]:
+            if pixel == [x, y]:
+                fim_jogo = True
+            
+
+        # Caso a cobra bata na parede
+        if x < 0 or x >= largura or y < 0 or y >= altura:
+            fim_jogo = True
+
+        desenhar_cobra(tamanho_quadrado, pixels)
+
+        # Pontuação
+        pontuacao = tamanho_cobra - 1
+        fonte = pygame.font.SysFont('Prosa', 25)
+        texto = fonte.render(f"Pontos: {pontuacao}", True, verde)
+        tela.blit(texto, [10, 10])
+
+        # criar nova comida
+        if x == comida_x and y == comida_y:
+            tamanho_cobra += 1
+            comida_x, comida_y = gerar_comida()
+
+        # Resultados
+        if fim_jogo:
+
+            print(f"Pontuacao final: {pontuacao}")
+            print(f"Tempo final: {formatted_time}" )
+
+
+        # atualização do tela
+        pygame.display.update()
+        relogio.tick(valocidade_cobra)
+
+jogo()
