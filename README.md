@@ -1,1 +1,1 @@
-# Jogo da Cobrinha desenvolvido com Aulas da #Programação
+# Jogo da Cobrinha desenvolvido com Aulas da hashtag treinamentos
